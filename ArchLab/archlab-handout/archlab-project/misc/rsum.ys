@@ -1,0 +1,46 @@
+# As you've got familiar with Y86 after writting your first y86 code
+# (bubble.ys), this code is left blank for you :)
+# Execution begins at address 0 
+	.pos 0
+	irmovq stack, %rsp  	
+	call main		
+	halt			
+
+# Sample linked list
+.align 8
+ele1:
+    .quad 0x00d
+    .quad ele2
+ele2:
+    .quad 0x0e0
+    .quad ele3
+ele3:
+    .quad 0xf00
+    .quad 0
+# END
+
+main:	
+	irmovq ele1,%rdi  
+	call rsum_list	  
+	ret
+
+# long rsum_list(long i)
+# ele1 in %rdi
+rsum_list:	
+    pushq %rbx         
+	xorq %rax,%rax           
+    andq %rdi, %rdi
+    je finish
+    mrmovq (%rdi), %rbx  
+    mrmovq 8(%rdi), %rdi 
+    call rsum_list
+    addq %rbx, %rax 
+
+finish:
+    popq %rbx            
+	ret                  
+
+# Stack starts here and grows to lower addresses.
+
+	.pos 0x200
+stack:

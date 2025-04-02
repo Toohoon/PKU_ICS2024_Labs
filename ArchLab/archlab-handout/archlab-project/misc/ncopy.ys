@@ -1,0 +1,160 @@
+################################################################################
+# ncopy.ys - Copy a src block of len words to dst.
+# Return the number of positive words (>0) contained in src.
+#
+# 郑斗薰 2100094820
+#
+#通过展开循环，可以减少循环控制指令的数量，从而降低每次执行的周期数
+#代码中使用了 iopq 指令（在ncopy.rs中实现），它能在一条指令中完成立即数加法操作
+#（否则需要两条指令来实现向寄存器加一个立即数的操作）
+#该程序的整体思路是一次对最多6个元素进行检查和操作。
+#通过重新排序指令，避免了流水线中的冒泡现象。
+#核心思路是：展开循环，使得每次可以同时处理6个元素，将循环长度设为8次，检查是否还有更多元素，若条件满足则重复执行。
+#
+#
+################################################################################
+# Do not modify this portion
+# Function prologue.
+# %rdi = src, %rsi = dst, %rdx = len
+ncopy:
+################################################################################
+# You can modify this portion
+# Loop Header
+	
+	
+	iaddq  $-8, %rdx            # len -= 8 加上IOPQ操作
+	jl     checkNextIndexes     # 看元素剩下的
+
+Loop:	
+    mrmovq (%rdi), %r8      # C 把src[i],src[i+1] 复制到寄存器上
+	mrmovq 8(%rdi), %r9     # Copy src[i+1] to %r9
+	rmmovq %r8, (%rsi)	    # 通过寄存器复制到 dst 上
+	andq   %r8, %r8	        
+	jle    Det_0		        # if(src[i]<=0)goTo Pos0
+	iaddq  $1, %rax		    # count++, positive number otherwise
+
+Det_0:	
+	rmmovq %r9, 8(%rsi)     # 把src[i+1]复制到dst[i+1]上
+	andq   %r9, %r9         
+	jle    Det_1	        # 如果src第i+1的元素小于等于0 去Pos1
+	iaddq  $1, %rax         # count++
+    
+Det_1: 
+	mrmovq 16(%rdi), %r8   # 复制到寄存器上
+	mrmovq 24(%rdi), %r9   # 
+	rmmovq %r8, 16(%rsi)    # 通过寄存器复制到 dst 上
+	andq   %r8, %r8         
+	jle    Det_2             # 一样，判断
+	iaddq  $1, %rax         # count++, positive number otherwise
+
+Det_2: 
+	rmmovq %r9, 24(%rsi)   #同样进行i+3的操作
+	andq   %r9, %r9           
+	jle    Det_3             
+	iaddq  $1, %rax        
+	
+Det_3: 
+	mrmovq 32(%rdi), %r8    #同样进行i+4的操作
+	mrmovq 40(%rdi), %r9   
+	rmmovq %r8, 32(%rsi)    
+	andq   %r8, %r8         
+	jle    Det_4          
+	iaddq  $1, %rax        
+
+Det_4: 
+	rmmovq %r9, 40(%rsi)   #同样进行i+5的操作
+	andq   %r9, %r9         
+	jle    Det_5          
+	iaddq  $1, %rax      
+Det_5: 
+	mrmovq 48(%rdi), %r8   #同样进行i+6的操作
+	mrmovq 56(%rdi), %r9   
+	rmmovq %r8, 48(%rsi)   
+	andq   %r8, %r8         
+	jle    Det_6           
+	iaddq  $1, %rax        
+
+Det_6: 
+	rmmovq %r9, 56(%rsi)    #同样进行i+7的操作
+	andq   %r9, %r9         
+	jle    Unroller        
+	iaddq  $1, %rax         
+
+
+Unroller: 
+	iaddq $64, %rdi         
+	iaddq $64, %rsi         
+	iaddq $-8, %rdx         
+	jge   Loop              #返回循环
+
+checkNextIndexes:  
+	iaddq $8, %rdx         
+
+#下面的循环也是反复刚才所做的事情
+Next0:
+	iaddq  $-1, %rdx        
+	jl     Done             
+	mrmovq (%rdi), %r8   
+	mrmovq 8(%rdi), %r9    
+	rmmovq %r8, (%rsi)     
+	andq   %r8, %r8         
+	jle    Next1          
+	iaddq  $1, %rax        
+	
+Next1: 
+	iaddq  $-1, %rdx        
+	jl     Done            
+	rmmovq %r9, 8(%rsi)   
+	andq   %r9, %r9       
+	jle    Next2          
+	iaddq  $1, %rax         
+
+Next2: 
+	iaddq  $-1, %rdx       
+	jl     Done             
+	mrmovq 16(%rdi), %r8   
+	mrmovq 24(%rdi), %r9   
+	rmmovq %r8, 16(%rsi)   
+	andq   %r8, %r8       
+	jle    Next3           
+	iaddq  $1, %rax        
+
+Next3: 
+	iaddq  $-1, %rdx        
+	jl     Done	        
+	rmmovq %r9, 24(%rsi)  
+	andq   %r9, %r9      
+	jle    Next4           
+	iaddq  $1, %rax 
+
+Next4: 
+	iaddq  $-1, %rdx        
+	jl     Done            
+	mrmovq 32(%rdi), %r8   
+	mrmovq 40(%rdi), %r9   
+	rmmovq %r8, 32(%rsi)   
+	andq   %r8, %r8       
+	jle    Next5           
+	iaddq  $1, %rax         
+
+Next5: 
+	iaddq  $-1, %rdx       
+	jl     Done	        
+	rmmovq %r9, 40(%rsi)   
+	andq   %r9, %r9      
+	jle    Next6         
+	iaddq  $1, %rax 
+
+Next6: 
+	iaddq  $-1, %rdx       
+	jl     Done            
+	mrmovq 48(%rdi), %r8  
+	rmmovq %r8, 48(%rsi)   
+	andq   %r8, %r8       
+	jle    Done             
+	iaddq  $1, %rax
+Done:
+	ret
+# In grader, we will add a "trap: jmp trap" here, which traps your program in an
+# infinite loop. Thus your function should always return instead of falling
+# through till the end of the source code :)
